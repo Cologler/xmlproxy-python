@@ -5,6 +5,8 @@
 #
 # ----------
 
+import pytest
+
 from xmlproxy import (
     et,
     text_property, element_property, element_list_property,
@@ -41,3 +43,20 @@ def test_element_list_property():
     r.abc.append(et.Element('abc'))
     r.abc.new_sub().text = 'ddd'
     assert tostring(r) == '<root><abc></abc><abc>ddd</abc></root>'
+
+def test_element_list_property_with_type():
+    class Name(et.Element):
+        pass
+
+    class Root(et.Element):
+        abc: Name = element_list_property('abc', eltype=Name)
+
+    r = Root('root')
+    assert r.abc is not None
+    assert len(r.abc) == 0
+    with pytest.raises(TypeError):
+        r.abc.append(et.Element('abc'))
+    subel = r.abc.new_sub()
+    assert isinstance(subel, Name)
+    subel.text = 'ddd'
+    assert tostring(r) == '<root><abc>ddd</abc></root>'

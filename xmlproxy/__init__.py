@@ -36,20 +36,27 @@ class ElementsProxy:
 
 
 class SubElementsProxy(ElementsProxy):
-    __slots__ = ('tag')
+    __slots__ = ('tag', 'eltype')
 
-    def __init__(self, element: et.Element, tag: str):
+    def __init__(self, element: et.Element, tag: str, eltype=et.Element):
+        assert issubclass(eltype, et.Element)
         super().__init__(element, filter_by_tag(tag))
         self.tag = tag
+        self.eltype = eltype
 
     def append(self, element: et.Element):
         'add sub element to the end.'
         assert element.tag == self.tag, 'tag name does not match.'
+        if not isinstance(element, self.eltype):
+            raise TypeError(f'expected {self.eltype} type, got {type(element)}.')
+
         self.element.append(element)
 
     def new_sub(self) -> et.Element:
         'create a sub element and append it than return it.'
-        return et.SubElement(self.element, self.tag)
+        sub_element = self.eltype(self.tag)
+        self.element.append(sub_element)
+        return sub_element
 
     def extend(self, elements):
         'append elements one by one.'
@@ -77,20 +84,27 @@ def view_property(filter: typing.Callable[[et.Element], bool]) -> ElementsProxy:
 
     return property(fget)
 
-def element_list_property(tag: str) -> SubElementsProxy:
+def element_list_property(tag: str, eltype: type=et.Element) -> SubElementsProxy:
     '''
     get or set the first matched element.
+
+    arguments:
+
+    - `eltype` - sub element type.
 
     usage:
 
     ``` py
+    class Name(et.Element):
+        ...
+
     class Root(et.Element):
-        abc = element_property('abc')
+        name = element_list_property('name', Name)
     ```
     '''
 
     def fget(self: et.Element):
-        return SubElementsProxy(self, tag)
+        return SubElementsProxy(self, tag, eltype)
 
     return property(fget)
 
