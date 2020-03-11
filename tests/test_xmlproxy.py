@@ -9,7 +9,7 @@ import pytest
 
 from xmlproxy import (
     et,
-    text_property, element_property, element_list_property,
+    text_property, text_list_property, element_property, element_list_property,
     tostring
 )
 

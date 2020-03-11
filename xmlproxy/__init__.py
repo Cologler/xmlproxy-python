@@ -14,7 +14,7 @@ def filter_by_tag(tag):
     return lambda x: et.iselement(x) and x.tag == tag
 
 
-class ElementsProxy:
+class ElementsFilterProxy:
     __slots__ = ('element', 'filter')
 
     def __init__(self, element: et.Element, filter):
@@ -35,7 +35,7 @@ class ElementsProxy:
         return next(iter(self), None)
 
 
-class SubElementsProxy(ElementsProxy):
+class SubElementsProxy(ElementsFilterProxy):
     __slots__ = ('tag', 'eltype')
 
     def __init__(self, element: et.Element, tag: str, eltype=et.Element):
@@ -74,13 +74,13 @@ class SubElementsProxy(ElementsProxy):
         self.extend(elements)
 
 
-def view_property(filter: typing.Callable[[et.Element], bool]) -> ElementsProxy:
+def view_property(filter: typing.Callable[[et.Element], bool]) -> ElementsFilterProxy:
     '''
     a view property for view sub elements by give filter.
     '''
 
     def fget(self: et.Element):
-        return ElementsProxy(self, filter)
+        return ElementsFilterProxy(self, filter)
 
     return property(fget)
 
@@ -135,11 +135,80 @@ def element_property(tag: str) -> et.Element:
     return property(fget, fset)
 
 
+class SubElementsTextProxy:
+    __slots__ = ('_proxy', )
+
+    def __init__(self, element: et.Element, tag: str):
+        super().__init__()
+        self._proxy = SubElementsProxy(element, tag)
+
+    def append(self, text: str):
+        'add text to the end.'
+        if not isinstance(text, str):
+            raise TypeError(f'expected str type, got {type(text)}.')
+        self._proxy.new_sub().text = text
+
+    def extend(self, texts: list):
+        'append texts one by one.'
+        for text in texts:
+            self.append(text)
+
+    def clear(self):
+        'remove all matched sub elements.'
+        self._proxy.clear()
+
+    def replace(self, elements):
+        'equals call `clear()` then `extend()`'
+        self.clear()
+        self.extend(elements)
+
+    def __iter__(self):
+        for item in self._proxy:
+            if self.filter(item):
+                yield item.text
+
+    def __len__(self):
+        return len(self._proxy)
+
+    def first(self):
+        'get the first matched text or `None`'
+        return next(iter(self), None)
+
+
+def text_list_property(tag: str) -> SubElementsTextProxy:
+    '''
+    get or set the matched element like a text collection.
+
+    this is helpful if you don't care element attrib and they childs.
+
+    usage:
+
+    ``` py
+    class Root(et.Element):
+        abc = text_list_property('abc')
+    ```
+    '''
+
+    if not isinstance(tag, str):
+        raise TypeError(f'expected str type, got {type(tag)}')
+
+    def fget(self: et.Element):
+        return SubElementsTextProxy(self, tag)
+
+    def fset(self: et.Element, texts: typing.List[str]):
+        SubElementsTextProxy(self, tag).replace(texts)
+
+    def fdel(self: et.Element):
+        SubElementsTextProxy(self, tag).clear()
+
+    return property(fget, fset, fdel)
+
+
 def text_property(tag: str) -> str:
     '''
     get or set the first matched element like a text.
 
-    this is helpful if you don't care element attrib.
+    this is helpful if you don't care element attrib and they childs.
 
     usage:
 
