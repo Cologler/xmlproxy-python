@@ -252,5 +252,5 @@ def tostring(el: et.Element, *,
         xml_declaration=xml_declaration,
         default_namespace=default_namespace,
         method=method,
-        short_empty_elements=False)
+        short_empty_elements=short_empty_elements)
     return sb.getvalue()
